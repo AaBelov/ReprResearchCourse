@@ -1,0 +1,62 @@
+###NOAA  severe weather events analysis
+#Synopsis
+Using this dataset provided by  National Oceanic and Atmospheric Administration's (NOAA) we will try to answer two basic questions:
+
+1. Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
+
+2. Across the United States, which types of events have the greatest economic consequences?
+
+#Data Processing
+
+```{r cache=TRUE}
+    data <- read.csv("repdata-data-StormData.csv.bz2")
+    relevantData <- data[,c(8, 23:28)]
+    rm(data)
+    nrow(relevantData) - sum(complete.cases(relevantData))
+```
+
+There are no missing values in selected columns, so we do non need to impute data.
+
+```{r}
+    library(dplyr)
+    str(relevantData)
+    head(relevantData)
+```
+
+First of all we will answer the question about population health. The data is grouped by event type then the sum of all fatalities and injures in each group is calculated.
+
+```{r}
+    populationDamage <- summarize(group_by(relevantData, EVTYPE), fatalities = sum(FATALITIES), injuries = sum(INJURIES), totalPopulationDamage = fatalities + injuries)
+    topTenFatalities <- head(arrange(populationDamage, desc(fatalities)), 10)
+    topTenFatalities
+```
+In this table we can see the data about top ten most falat events.
+To visualize the data we will use barplot of selected ten events.
+```{r}
+    barplot(topTenFatalities$fatalities, names.arg = topTenFatalities$EVTYPE, cex.names = 0.5, las = 2, main = "Fatalities", xlab = "Event", ylab = "Total Fatalities", ylim = c(0, 6000))
+```
+
+To answer the second question we need to calculate total economic damage. We  should not forget to use miltipliers in extra columns where "B" stays for billion, "M" for million, "K" for thousand.
+```{r}
+    relevantData[which(relevantData$PROPDMGEXP == "B" | relevantData$PROPDMGEXP == "b"),]$PROPDMG <- relevantData[which(relevantData$PROPDMGEXP == "B" | relevantData$PROPDMGEXP == "b"),]$PROPDMG * 1000000000
+    relevantData[which(relevantData$PROPDMGEXP == "M" | relevantData$PROPDMGEXP == "m"),]$PROPDMG <- relevantData[which(relevantData$PROPDMGEXP == "M" | relevantData$PROPDMGEXP == "m"),]$PROPDMG * 1000000
+    relevantData[which(relevantData$PROPDMGEXP == "K" | relevantData$PROPDMGEXP == "k"),]$PROPDMG <- relevantData[which(relevantData$PROPDMGEXP == "K" | relevantData$PROPDMGEXP == "k"),]$PROPDMG * 1000
+    relevantData[which(relevantData$CROPDMGEXP == "B" | relevantData$CROPDMGEXP == "b"),]$CROPDMG <- relevantData[which(relevantData$CROPDMGEXP == "B" | relevantData$CROPDMGEXP == "b"),]$CROPDMG * 1000000000
+    relevantData[which(relevantData$CROPDMGEXP == "M" | relevantData$CROPDMGEXP == "m"),]$CROPDMG <- relevantData[which(relevantData$CROPDMGEXP == "M" | relevantData$CROPDMGEXP == "m"),]$CROPDMG * 1000000
+    relevantData[which(relevantData$CROPDMGEXP == "K" | relevantData$CROPDMGEXP == "k"),]$CROPDMG <- relevantData[which(relevantData$CROPDMGEXP == "K" | relevantData$CROPDMGEXP == "k"),]$CROPDMG * 1000
+    economicDamage <- summarize(group_by(relevantData, EVTYPE), propDamage = sum(PROPDMG), cropDamage = sum(CROPDMG), totaleconomicDamage = propDamage + cropDamage)
+    topTenEconomicDamage <- head(arrange(economicDamage, desc(totaleconomicDamage)), 10)
+    topTenEconomicDamage
+```
+
+Let's visualize the data.
+```{r}
+    par(mar = c(7.0, 6.5, 2.5, 0.5), mgp = c(5, 0.5, 0))
+    barplot(topTenEconomicDamage$totaleconomicDamage, names.arg = topTenEconomicDamage$EVTYPE, cex.names = 0.5, las = 2, main = "Economic Damage", xlab = "Event", ylab = "Total Economic Damage")
+```
+
+Here we can see that floods are the most damaging events to country's economy.
+
+###Results
+The analysis have shown that tornadoes are the most fatal weather events due to the highest amount of fatalities.
+We also found out that floods are the most harmful events from the economic side.
